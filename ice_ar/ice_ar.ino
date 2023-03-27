@@ -10,23 +10,23 @@ Serial.begin(9600);
 
 void loop() {
 
-  temp = ((analogRead(pin)/1024.0)*5.0-0.5)*100;
-  TMP=temp*100;
-  mode = analogRead(A2)/127;
+  temp = ((analogRead(pin)/1024.0)*5.0-0.5)*100;//センサーの値を温度に変換
+  TMP=temp*100;//整数情報にして小数点以下も送る
+  mode = analogRead(A2)/127;//半固定抵抗器 1以上or1以下に分ける
   if(mode>=1){E = 1;}
-  if(mode<0){E = 0;}
+  if(mode<1){E = 0;}
   
 if(Serial.available()==1){  //1バイトのデータを受信
-  byte inBuf[1];//配列一個
+  byte inBuf[1];//配列一個 受信
   Serial.readBytes(inBuf,1);//ポートの文字列一個をinBufに入れる
-  if(inBuf[0]=='s'){
-    byte outBuf[5];
+  if(inBuf[0]=='s'){//文字sを受信したら
+    byte outBuf[5];//配列5個
     outBuf[0] = 's';
-    outBuf[1] = (int16_t)(TMP)>>8;//上位
-    outBuf[2] = (int16_t)(TMP)&0xFF;//下位
-    outBuf[3] = E;
+    outBuf[1] = (int16_t)(TMP)>>8;//温度上位8it
+    outBuf[2] = (int16_t)(TMP)&0xFF;//温度下位8bit
+    outBuf[3] = E;//モード 0or1
     outBuf[4] = 'e';
-    Serial.write(outBuf,4);
+    Serial.write(outBuf,5);//outBufの中身を送信
     }
     else{
       while(Serial.available()>0)Serial.read();//バッファを空に
