@@ -10,9 +10,10 @@ int posX = 500;
 int B,a,b,c,d,la,lb,num,skyloop,posr,posl= 0;
 int i,Ani,skyani,T=1;
 int W,W2=2;
-int box = 200;//降らす雪の数
+int box = 200;//降らせる雪の量
 float X,Y,Tmp;
-boolean left, right, shift,A,Z,meltA,meltB,C,N,H,K;    //移動制御,キー制御,雪だるま溶かす,向き判定,温度判定
+boolean left, right, shift,A,Z;  //向き判定, 移動制御,アクションのキー制御
+boolean meltA,meltB,C,N,H,K;//雪だるま溶かすか木を溶かすか, 温度判定Cool Nomal Hot,モード判定
 boolean up,L = true;    //背景画像の制御
 boolean down,R = false; 
 PImage sky,field,snow,snowman,tree,snowmanm,treem,light,player;     //画像素材
@@ -25,7 +26,8 @@ int deg,Timer;
 
 
 void setup(){
-myPort = new Serial(this,Serial.list()[2],9600);
+//printArray(Serial.list());  //シリアルポート確認用
+myPort = new Serial(this,Serial.list()[2],9600);    //Aruduinoを接続してるポートに
 size(840,560);
 background(0);
 stroke(255);
@@ -34,13 +36,14 @@ frameRate(60);
 field = loadImage("field.png");
 snow = loadImage("snow.png");
 light = loadImage("light.png");
-for(int i = 0;i<box;i++){
-x[i]=random(width);
+for(int i = 0;i<box;i++){  //雪の初期位置とサイズ
+x[i]=random(width); 
 y[i]=-10-random(5500);
 s[i]=random(5,10);
 }
+//ここからbgmと効果音
 minim = new Minim(this);
-sound = minim.loadSample("音１.wav");
+sound = minim.loadSample("音１.wav");  //足音
 magic = minim.loadSample("氷魔法で凍結.mp3");
 magic2 = minim.loadSample("キラッ2.mp3");
 bgm = minim.loadFile("maou_bgm_healing04.mp3");
@@ -49,12 +52,14 @@ bgm.loop();
 
 void draw(){
   
+  //シリアル通信処理
+  
   if(millis()-Timer>50){
   Timer=millis();
-  byte[]inBuf = new byte[5];//byte配列5つ
-  if(myPort.available()==5){//5つデータが来てたら
+  byte[]inBuf = new byte[5];    //byte配列5つ
+  if(myPort.available()==5){    //5つデータが来てたら
   myPort.readBytes(inBuf);
-  if(inBuf[0]=='s'&&inBuf[4]=='e'){//データがちゃんと来てる
+  if(inBuf[0]=='s'&&inBuf[4]=='e'){    //データがちゃんと来てる
   Tmp = (inBuf[1]<<8)+(inBuf[2]&0xff);
   Tmp/=100.0;
   if(inBuf[3]==0){K=true;}
@@ -74,78 +79,108 @@ void draw(){
   myPort.write(outBuf);
   }
   
-  if(Tmp<=17.5){C=true;N=false;H=false;} //モード変更 ひんやり
-  if(17.5<Tmp&&Tmp<21.5){C=false;N=true;H=false;}//ノーマル
-  if(Tmp>=21.5){C=false;N=false;H=true;} //あったか
+  //シリアル通信処理ここまで
   
-if(right){        //→押してる間右移動。800で止まり背景が動く
+  
+  //温度判定
+  
+  float low = 17.5; 
+  float high = 21.5;  
+  if(Tmp<=low){C=true;N=false;H=false;}  //モード変更 ひんやり
+  if(low<Tmp&&Tmp<high){C=false;N=true;H=false;}  //ノーマル
+  if(Tmp>=high){C=false;N=false;H=true;}  //あったか
+  
+  //温度判定ここまで
+  
+  
+  //移動制御
+  
+if(right){        //→キー押してる間右移動
   if(posX<=650){
-    posr=25;
+    posr=25;  //キャラクター移動速度(右方向)
 posX = posX+posr;
   }
+  //キャラクターの位置が650以上の時は背景とオブジェクトの方を左にズラす
   if(posX>=650){
   posr=0;
-  posl=-25;
-skyloop-=20;
+  posl=-25;  //オブジェクトの移動速度
+skyloop-=20; //背景の移動速度
+
+//！遠景の方が遅く見える
+
 }
+
 }
-if(left){       //←押してる間左移動。50で止まり背景が動く
- if(posX>=0){
+if(left){       //←キー押してる間左移動
+ if(posX>=50){
     posr=-25;
 posX = posX+posr;
   }
-  if(posX<=0){
+  //キャラクターの位置が50以下の時は背景の方を左にズラす
+  if(posX<=50){
   posr=0;
   posl=25;
 skyloop+=20;
 }
 }
-if(right==false&&left==false||right==true&&left==true){posl=0;}
+if(right==false&&left==false||right==true&&left==true){posl=0;}  //キーが押されていない間はオブジェクトは動かない
 
+  //移動制御ここまで
+  
+  
+  //背景ループ処理
+  
   sky();
+  
     if(skyloop<-1660){skyloop=0;}
   if(skyloop>0){skyloop=-1660;}
-  image(sky,skyloop,0);
-image(field,0,50);
+  
+    //背景ループ処理ここまで
+  
+image(sky,skyloop,0);  //空画像表示
+image(field,0,50);  //地面画像表示
 
 snow();
 
 
-
-if(A){
+if(A){  //キャラクターの位置に雪だるまを作る
 snowman(posX);
 }
 
-if(meltA){
+if(meltA){  //雪だるま溶かす
 meltA();
 }
 
 
-Ani+=1;
-if(Ani==11){Ani=1;}//立ち
-if(Ani==15){Ani=11;}//歩き
-if(Ani==26){Ani=1;}
-if((left||right)&&(Ani<11||Ani>14)){Ani=11;}
-if((left==false&&right==false)&&(Ani>11&Ani<15)){Ani=10;}
-println(Ani);
+//アニメーション処理
 
+//1~10：立ち(呼吸),11~14：歩き, 15~26：アクション
+Ani+=1;  //次の画像へ
+if(Ani==11){Ani=1;}  //立ち
+if(Ani==15){Ani=11;}  //歩き
+if(Ani==26){Ani=1;}  //アクション
+if((left||right)&&(Ani<11||Ani>14)){Ani=11;}  //移動キー顔されてる間歩きアニメーションをループ
+if((left==false&&right==false)&&(Ani>11&Ani<15)){Ani=10;}  //キー入力がなければ呼吸モーションに
+
+//println(Ani);  //ページ送りチェック
 Anime(Ani);
 
+//アニメーション処理ここまで
 
 
-if(Z){
+
+if(Z){  //キャラクターの位置に木を生やす
 ice1(posX);
 }
-
-
-
-if(meltB){
+if(meltB){  //木を溶かす
 meltB();
 }
 
 
-image(field,0,60);
+image(field,0,60);  //前面に地面画像をもう一枚表示してぼやっとした雪っぽさを出す
 
+
+//画面上テキスト類
 text("←→ : Move",100,100);
 if(K){text("tree",100,130);}
 else{text("snowman",100,130);}
@@ -154,6 +189,7 @@ if(C){text("Z : Action",100,190);}
     else{text("Warm or cool sensor",100,190);}
 text(Tmp,100,160);
 }
+//画面上テキスト類ここまで
 
 
 
@@ -408,7 +444,7 @@ y[i]=400+random(5500);
     if(x==12){player=  loadImage("WLh_0001.png");}
     if(x==13){player=  loadImage("WLh_0002.png");}
     if(x==14){player=  loadImage("WLh_0003.png");}
-    if(x==15){player=  loadImage("ALh_0000.png");}
+    if(x==15){player=  loadImage("ALh_0000.png");}  //アクション
     if(x==16){player=  loadImage("ALh_0001.png");}
     if(x==17){player=  loadImage("ALh_0002.png");}
     if(x==18){player=  loadImage("ALh_0003.png");}
@@ -431,7 +467,7 @@ y[i]=400+random(5500);
     if(x==12){player=  loadImage("WRh_0001.png");}
     if(x==13){player=  loadImage("WRh_0002.png");}
     if(x==14){player=  loadImage("WRh_0003.png");}
-     if(x==15){player=  loadImage("ARh_0000.png");}
+     if(x==15){player=  loadImage("ARh_0000.png");}   //アクション
     if(x==16){player=  loadImage("ARh_0001.png");}
     if(x==17){player=  loadImage("ARh_0002.png");}
     if(x==18){player=  loadImage("ARh_0003.png");}
@@ -455,7 +491,7 @@ y[i]=400+random(5500);
     if(x==12){player=  loadImage("WLc_0001.png");}
     if(x==13){player=  loadImage("WLc_0002.png");}
     if(x==14){player=  loadImage("WLc_0003.png");}
-    if(x==15){player=  loadImage("ALc_0000.png");}
+    if(x==15){player=  loadImage("ALc_0000.png");}   //アクション
     if(x==16){player=  loadImage("ALc_0001.png");}
     if(x==17){player=  loadImage("ALc_0002.png");}
     if(x==18){player=  loadImage("ALc_0003.png");}
@@ -478,7 +514,7 @@ y[i]=400+random(5500);
     if(x==12){player=  loadImage("WRc_0001.png");}
     if(x==13){player=  loadImage("WRc_0002.png");}
     if(x==14){player=  loadImage("WRc_0003.png");}
-      if(x==15){player=  loadImage("ARc_0000.png");}
+     if(x==15){player=  loadImage("ARc_0000.png");}   //アクション
     if(x==16){player=  loadImage("ARc_0001.png");}
     if(x==17){player=  loadImage("ARc_0002.png");}
     if(x==18){player=  loadImage("ARc_0003.png");}
