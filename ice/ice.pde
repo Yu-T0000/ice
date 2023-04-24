@@ -26,7 +26,9 @@ int deg,Timer;
 
 
 void setup(){
+  
 //printArray(Serial.list());  //シリアルポート確認用
+
 myPort = new Serial(this,Serial.list()[2],9600);    //Aruduinoを接続してるポートに
 size(840,560);
 background(0);
@@ -36,6 +38,7 @@ frameRate(60);
 field = loadImage("field.png");
 snow = loadImage("snow.png");
 light = loadImage("light.png");
+
 for(int i = 0;i<box;i++){  //雪の初期位置とサイズ
 x[i]=random(width); 
 y[i]=-10-random(5500);
@@ -50,21 +53,25 @@ bgm = minim.loadFile("maou_bgm_healing04.mp3");
 bgm.loop();
 }
 
+
 void draw(){
   
   //シリアル通信処理
   
   if(millis()-Timer>50){
   Timer=millis();
-  byte[]inBuf = new byte[5];    //byte配列5つ
-  if(myPort.available()==5){    //5つデータが来てたら
+  byte[]inBuf = new byte[5];    //byte配列5つ arduino側のoutBuf[]と揃える
+  if(myPort.available()==5){  //受信数チェック
   myPort.readBytes(inBuf);
-  if(inBuf[0]=='s'&&inBuf[4]=='e'){    //データがちゃんと来てる
-  Tmp = (inBuf[1]<<8)+(inBuf[2]&0xff);
-  Tmp/=100.0;
-  if(inBuf[3]==0){K=true;}
-  if(inBuf[3]==1){K=false;}
-  }
+  if(inBuf[0]=='s'&&inBuf[4]=='e'){  //確認用ダミーデータチェック
+    Tmp = (inBuf[1]<<8)+(inBuf[2]&0xff);
+    Tmp/=100.0;  //温度
+    if(inBuf[3]==0){K=true;}
+    if(inBuf[3]==1){K=false;}  //モード変更
+    
+    //センサ追加時はここに処理追加
+    
+   }
   else{//データがなんか違う
   while(myPort.available()>0)myPort.read();//クリア
   println("x");
@@ -98,15 +105,15 @@ void draw(){
 if(right){        //→キー押してる間右移動
   if(posX<=650){
     posr=25;  //キャラクター移動速度(右方向)
-posX = posX+posr;
+    posX = posX+posr;
   }
   //キャラクターの位置が650以上の時は背景とオブジェクトの方を左にズラす
   if(posX>=650){
-  posr=0;
-  posl=-25;  //オブジェクトの移動速度
-skyloop-=20; //背景の移動速度
+    posr=0;
+    posl=-25;  //オブジェクトの移動速度
+    skyloop-=20; //背景の移動速度
 
-//！遠景の方が遅く見える
+//！遠景の方が遅く動いて見える！
 
 }
 
@@ -123,7 +130,7 @@ posX = posX+posr;
 skyloop+=20;
 }
 }
-if(right==false&&left==false||right==true&&left==true){posl=0;}  //キーが押されていない間はオブジェクトは動かない
+if(right==false&&left==false||right==true&&left==true){posl=0;}
 
   //移動制御ここまで
   
@@ -140,13 +147,13 @@ if(right==false&&left==false||right==true&&left==true){posl=0;}  //キーが押�
 image(sky,skyloop,0);  //空画像表示
 image(field,0,50);  //地面画像表示
 
-snow();
+
+snow();  //雪降らす
 
 
 if(A){  //キャラクターの位置に雪だるまを作る
 snowman(posX);
 }
-
 if(meltA){  //雪だるま溶かす
 meltA();
 }
@@ -188,16 +195,20 @@ if(C){text("Z : Action",100,190);}
   else if(H){text("X : Action",100,190);}
     else{text("Warm or cool sensor",100,190);}
 text(Tmp,100,160);
-}
 //画面上テキスト類ここまで
 
+}  //draw終わり
 
 
+//キー操作処理
 void keyPressed() {   
     if (keyCode == RIGHT){
     R = true;
-    L = false;
-    right = true;}
+    L = false; 
+     //向き判定
+    right = true;
+    // キー長押し判定
+}
     if (keyCode == LEFT){
       R = false;
       L = true;
@@ -237,7 +248,10 @@ void keyReleased() {
 }
 
 
-
+/*
+オブジェクトの出現位置にプレイヤーキャラの座標を使うとキー入力時一緒になって動いてしまうため
+プレイヤーの位置によって左、真ん中、右のどこから生えるか判定する
+*/
 
 
 void snowman(int X){ //雪だるま
@@ -264,10 +278,10 @@ void snowman(int X){ //雪だるま
     
     image(snowman,xs+W*180,300,200,200);
     a+=1;
-    if(posX-xs-W*180<150&&posX-xs-W*180>-150){
-      la=1;
+    if(posX-xs-W*180<150&&posX-xs-W*180>-150){  //プレイヤーとオブジェクトの位置関係チェック
+      la=1;  //それなりに近かったら消せるよ
     }
-    else{la=0;}
+    else{la=0;}  //遠いので消えないよ
     }
     
     void meltA(){
@@ -531,6 +545,4 @@ y[i]=400+random(5500);
     if(C && x==17){magic.trigger();}
     if(H && x==17){magic2.trigger();}
 image(player,posX,210,200,278);
-    
-    
     }
